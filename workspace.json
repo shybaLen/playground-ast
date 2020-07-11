@@ -1,8 +1,131 @@
 {
   "version": 1,
-  "projects": {},
+  "projects": {
+    "antlr4-php": {
+      "root": "packages/antlr4-php",
+      "sourceRoot": "packages/antlr4-php/src",
+      "projectType": "application",
+      "prefix": "antlr4-php",
+      "schematics": {},
+      "architect": {
+        "build": {
+          "builder": "@nrwl/node:build",
+          "options": {
+            "outputPath": "dist/packages/antlr4-php",
+            "main": "packages/antlr4-php/src/main.ts",
+            "tsConfig": "packages/antlr4-php/tsconfig.app.json",
+            "assets": [
+              "packages/antlr4-php/src/assets"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "extractLicenses": true,
+              "inspect": false,
+              "fileReplacements": [
+                {
+                  "replace": "packages/antlr4-php/src/environments/environment.ts",
+                  "with": "packages/antlr4-php/src/environments/environment.prod.ts"
+                }
+              ]
+            }
+          }
+        },
+        "serve": {
+          "builder": "@nrwl/node:execute",
+          "options": {
+            "buildTarget": "antlr4-php:build"
+          }
+        },
+        "lint": {
+          "builder": "@nrwl/linter:lint",
+          "options": {
+            "linter": "eslint",
+            "tsConfig": [
+              "packages/antlr4-php/tsconfig.app.json",
+              "packages/antlr4-php/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**",
+              "!packages/antlr4-php/**/*"
+            ]
+          }
+        },
+        "test": {
+          "builder": "@nrwl/jest:jest",
+          "options": {
+            "jestConfig": "packages/antlr4-php/jest.config.js",
+            "tsConfig": "packages/antlr4-php/tsconfig.spec.json",
+            "passWithNoTests": true
+          }
+        }
+      }
+    },
+    "php-to-ts": {
+      "root": "packages/php-to-ts",
+      "sourceRoot": "packages/php-to-ts/src",
+      "projectType": "application",
+      "prefix": "php-to-ts",
+      "schematics": {},
+      "architect": {
+        "build": {
+          "builder": "@nrwl/node:build",
+          "options": {
+            "outputPath": "dist/packages/php-to-ts",
+            "main": "packages/php-to-ts/src/main.ts",
+            "tsConfig": "packages/php-to-ts/tsconfig.app.json",
+            "assets": [
+              "packages/php-to-ts/src/assets"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "extractLicenses": true,
+              "inspect": false,
+              "fileReplacements": [
+                {
+                  "replace": "packages/php-to-ts/src/environments/environment.ts",
+                  "with": "packages/php-to-ts/src/environments/environment.prod.ts"
+                }
+              ]
+            }
+          }
+        },
+        "serve": {
+          "builder": "@nrwl/node:execute",
+          "options": {
+            "buildTarget": "php-to-ts:build"
+          }
+        },
+        "lint": {
+          "builder": "@nrwl/linter:lint",
+          "options": {
+            "linter": "eslint",
+            "tsConfig": [
+              "packages/php-to-ts/tsconfig.app.json",
+              "packages/php-to-ts/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**",
+              "!packages/php-to-ts/**/*"
+            ]
+          }
+        },
+        "test": {
+          "builder": "@nrwl/jest:jest",
+          "options": {
+            "jestConfig": "packages/php-to-ts/jest.config.js",
+            "tsConfig": "packages/php-to-ts/tsconfig.spec.json",
+            "passWithNoTests": true
+          }
+        }
+      }
+    }
+  },
   "cli": {
-    "defaultCollection": "@nrwl/workspace"
+    "defaultCollection": "@nrwl/node"
   },
   "schematics": {
     "@nrwl/workspace": {
@@ -62,5 +185,6 @@
         "linter": "eslint"
       }
     }
-  }
+  },
+  "defaultProject": "antlr4-php"
 }
