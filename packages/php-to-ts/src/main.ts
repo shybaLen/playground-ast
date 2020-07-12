@@ -33,7 +33,7 @@ glob('source-code/**/*.php', {
 
     const output = new Output();
     const visitor = new OutputVisitor(output);
-    const node = visitor.visit(result);
+    const node = visitor.beginParse(result);
 
     visitor.flushLog();
 
