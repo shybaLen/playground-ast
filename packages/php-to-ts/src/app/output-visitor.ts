@@ -786,10 +786,12 @@ export class OutputVisitor {
   }
 
   _handleName(name) {
-    if (name === 'class') {
-      return 'clazz';
+    const NameMap = {
+      "class": 'clazz',
+      "default": '_default'
     }
-    return name;
+
+    return NameMap[name] || name;
   }
 
   visitIdentifier(ast, ctx) {
@@ -1335,7 +1337,11 @@ export class OutputVisitor {
 
   visitTrait(ast, ctx) {
     this.currentClassType = 'trait';
-    return this._visitClassOrInterface(ast, 'class', ctx);
+    const node = this._visitClassOrInterface(ast, 'class', ctx);
+
+    ts.addSyntheticLeadingComment(node, ts.SyntaxKind.MultiLineCommentTrivia, 'trait', false);
+
+    return node;
   }
 
   // visitTraitalias(ast, ctx) {
