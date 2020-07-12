@@ -128,10 +128,10 @@ export class OutputVisitor {
                 this.visit(_extends)
               )]
           ) : undefined,
-          ts.createHeritageClause(
+          _implements ? ts.createHeritageClause(
             ts.SyntaxKind.ImplementsKeyword,
             _implements
-          )
+          ) : undefined
         ].filter(it => !!it),
         [
           ...clazzCtx.properties,
@@ -228,7 +228,7 @@ export class OutputVisitor {
     const comments = this._visitComments(ast);
     const modifiers = this._handleModifier(ast);
     const parameters = this._visitArrayList(ast.arguments, ctx);
-    const body = this.visit(ast.body, ctx);
+    const body = ast.body ? this.visit(ast.body, ctx) : undefined;
     let node;
     if (ast.name.name === '__construct') {
       node = ts.createConstructor(
@@ -349,11 +349,16 @@ export class OutputVisitor {
   }
 
   visitPropertylookup(ast, ctx) {
+    if (ast.offset.kind === 'encapsedpart') {
+      return ts.createElementAccess(
+        this.visit(ast.what, ctx),
+        this.visit(ast.offset.expression, ctx)
+      );
+    }
     return ts.createPropertyAccess(
       this.visit(ast.what, ctx),
       this.visit(ast.offset, ctx)
     );
-
   }
 
   visitVariable(ast, ctx) {
@@ -394,40 +399,101 @@ export class OutputVisitor {
   }
 
   visitForeach(ast, ctx) {
-    return ts.createForOf(
-      undefined,
-      ts.createVariableDeclarationList(
-        [ts.createVariableDeclaration(
-          ts.createArrayBindingPattern([
-            ts.createBindingElement(
-              undefined,
-              undefined,
-              this.visit(ast.key),
-              undefined
+    if (ast.source.kind === 'array') {
+      return ts.createExpressionStatement(
+        ts.createCall(
+          ts.createPropertyAccess(
+            ts.createArrayLiteral(
+              this.visit(ast.source, ctx),
+              false
             ),
-            ts.createBindingElement(
-              undefined,
-              undefined,
-              this.visit(ast.value),
-              undefined
-            )
-          ]),
+            ts.createIdentifier('forEach')
+          ),
           undefined,
-          undefined
-        )],
-        ts.NodeFlags.Let
-      ),
-      ts.createCall(
-        ts.createPropertyAccess(
-          ts.createIdentifier('Object'),
-          ts.createIdentifier('entries')
-        ),
-        undefined,
-        [this.visit(ast.source)]
-      ),
-      this.visit(ast.body)
-    );
+          [
+            ts.createArrowFunction(
+              undefined,
+              undefined,
+              [
+                ts.createParameter(
+                  undefined,
+                  undefined,
+                  undefined,
+                  this.visit(ast.value, ctx) || 'it',
+                  undefined,
+                  undefined,
+                  undefined
+                ),
+                ts.createParameter(
+                  undefined,
+                  undefined,
+                  undefined,
+                  this.visit(ast.key, ctx) || 'index',
+                  undefined,
+                  undefined,
+                  undefined
+                )
+              ],
+              undefined,
+              ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+              ts.createBlock(
+                [],
+                true
+              )
+            )]
+        ));
 
+    } else if (!ast.key) {
+      return ts.createForOf(
+        undefined,
+        ts.createVariableDeclarationList(
+          [
+            ts.createVariableDeclaration(
+              this.visit(ast.value, ctx),
+              undefined,
+              undefined
+            )],
+          ts.NodeFlags.Let
+        ),
+        this.visit(ast.source),
+        this.visit(ast.body)
+      );
+    } else {
+      return ts.createForOf(
+        undefined,
+        ts.createVariableDeclarationList(
+          [
+            ts.createVariableDeclaration(
+              ts.createArrayBindingPattern([
+                ast.key ? ts.createBindingElement(
+                  undefined,
+                  undefined,
+                  this.visit(ast.key),
+                  undefined
+                ) : undefined,
+                ast.value ? ts.createBindingElement(
+                  undefined,
+                  undefined,
+                  this.visit(ast.value),
+                  undefined
+                ) : undefined
+              ]),
+              undefined,
+              undefined
+            )],
+          ts.NodeFlags.Let
+        ),
+        ts.createCall(
+          ts.createPropertyAccess(
+            ts.createIdentifier('Object'),
+            ts.createIdentifier('entries')
+          ),
+          undefined,
+          [this.visit(ast.source)]
+        ),
+        this.visit(ast.body)
+      );
+    }
   }
 
   visitTry(ast, ctx) {
@@ -798,7 +864,7 @@ export class OutputVisitor {
   }
 
   visit(ast, ctx?) {
-    if (ast === undefined) {
+    if (ast === undefined || ast === null) {
       return undefined;
     }
     if (Array.isArray(ast)) {
@@ -843,9 +909,22 @@ export class OutputVisitor {
   //   return this.visitx(ast);
   // }
 
-  // visitClassconstant(ast, ctx) {
-  //   return this.visit(ast.x);
-  // }
+  visitClassconstant(ast, ctx) {
+    const { properties } = ctx;
+    ast.constants.forEach(it => {
+      const node = ts.createProperty(
+        undefined,
+        [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+        this.visit(it.name, ctx),
+        undefined,
+        undefined,
+        it.value ? this.visit(it.value, ctx) : undefined
+      );
+      properties.push(node);
+    });
+
+    return undefined;
+  }
 
   visitClone(ast, ctx) {
     return ts.createExpressionStatement(
@@ -936,12 +1015,12 @@ export class OutputVisitor {
   }
 
   visitEncapsed(ast, ctx) {
-    return ts.createStringLiteral(ast.raw.replace(/<<<([^\n]+?)\n(.+?)\n\1/gs, '\2'));
+    return ts.createStringLiteral(ast.raw.replace(/<<<([^\n]+?)\n(.+?)\n\1/gs, '$2'));
   }
 
-  // visitEncapsedpart(ast, ctx) {
-  //   return this.visit(ast.expression);
-  // }
+  visitEncapsedpart(ast, ctx) {
+    return this.visit(ast.expression);
+  }
 
   // visitError(ast, ctx) {
   //   return this.visit(ast.x);
@@ -965,8 +1044,29 @@ export class OutputVisitor {
         this._visitArrayList(ast.init, ctx),
         ts.NodeFlags.Let
       ),
-      this.visit(ast.test, ctx),
-      this.visit(ast.increment, ctx),
+      this._visitArrayList(ast.test, ctx)
+        .reduce((curr, prev, idx) => {
+          if (idx === 0) {
+            return curr;
+          }
+          return ts.createBinary(
+            prev,
+            ts.createToken(ts.SyntaxKind.AmpersandAmpersandToken),
+            curr
+          );
+        }),
+      this._visitArrayList(ast.increment, ctx)
+        .reduce((curr, prev, idx) => {
+            if (idx === 0) {
+              return curr;
+            }
+            return ts.createBinary(
+              prev,
+              ts.createToken(ts.SyntaxKind.CommaToken),
+              curr
+            );
+          }
+        ),
       this.visit(ast.body)
     );
 
@@ -988,9 +1088,9 @@ export class OutputVisitor {
   //   return this.visit(ast.x);
   // }
 
-  // visitInclude(ast, ctx) {
-  //   return this.visit(ast.x);
-  // }
+  visitInclude(ast, ctx) {
+    return ts.createIdentifier('import');
+  }
 
   // visitInline(ast, ctx) {
   //   return this.visit(ast.x);
@@ -1043,7 +1143,7 @@ export class OutputVisitor {
   // }
 
   visitMagic(ast, ctx) {
-    return this.visit(ast.value, ctx);
+    return ts.createIdentifier(ast.value);
   }
 
   //
@@ -1055,9 +1155,9 @@ export class OutputVisitor {
     return this.visit(ast.x);
   }
 
-  // visitParentreference(ast, ctx) {
-  //   return this.visit(ast.x);
-  // }
+  visitParentreference(ast, ctx) {
+    return ts.createSuper();
+  }
 
   visitPosition(ast, ctx) {
     return this.visit(ast.x);
@@ -1102,9 +1202,9 @@ export class OutputVisitor {
   //   return this.visit(ast.x);
   // }
 
-  // visitSelfreference(ast, ctx) {
-  //   return this.visit(ast.x);
-  // }
+  visitSelfreference(ast, ctx) {
+    return ts.createIdentifier(this.currentClazzName);
+  }
 
   // visitSilent(ast, ctx) {
   //   return this.visit(ast.x);
@@ -1171,9 +1271,17 @@ export class OutputVisitor {
     }
   }
 
-  // visitVariadic(ast, ctx) {
-  //   return this.visit(ast.x);
-  // }
+  visitVariadic(ast, ctx) {
+    return ts.createParameter(
+      undefined,
+      undefined,
+      ts.createToken(ts.SyntaxKind.DotDotDotToken),
+      ts.createIdentifier('arg1'),
+      undefined,
+      undefined,
+      undefined
+    );
+  }
 
   visitYieldfrom(ast, ctx) {
     const node = this.visitYield(ast, ctx);

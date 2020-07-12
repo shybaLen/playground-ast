@@ -137,5 +137,8 @@ export const TextToToken = {
   "|=": ts.SyntaxKind.BarEqualsToken,
   "^=": ts.SyntaxKind.CaretEqualsToken,
   "@": ts.SyntaxKind.AtToken,
-  "`": ts.SyntaxKind.BacktickToken
+  "`": ts.SyntaxKind.BacktickToken,
+
+  //php
+  ".=": ts.SyntaxKind.PlusEqualsToken
 }
