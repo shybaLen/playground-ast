@@ -92,7 +92,7 @@ export class OutputVisitor {
 
   visitUseitem(ast, ctx) {
     const splited = ast.name.split('\\');
-    const clz = splited.pop();
+    const clz = splited[splited.length - 1];
     const module = splited.join('/') || 'ROOT';
     const alias = ast.alias && ast.alias.name;
     const rst = ts.createImportDeclaration(undefined,
