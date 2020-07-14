@@ -20,31 +20,48 @@ const ROOT = '../../../';
 
 glob('source-code/**/*.php', {
   root: ROOT
-}, function(er, files) {
+}, function (er, files) {
   console.log(files);
 
-  fs.rmdirSync(join(ROOT, 'dist', 'output-ts'), {recursive: true});
+  fs.rmdirSync(join(ROOT, 'dist', 'output-ts'), { recursive: true });
 
 
   files.forEach(it => {
     const code = fs.readFileSync(resolve(__dirname, join(ROOT, it)), 'utf8');
 
-    const result = parser.parseCode(code, it);
+    if (!code.includes('class')) {
+      return
+    }
+    let node;
+    try {
+      const result = parser.parseCode(code, it);
 
-    const output = new Output();
-    const visitor = new OutputVisitor(output);
-    const node = visitor.beginParse(result);
 
-    visitor.flushLog();
+      const output = new Output();
+      const visitor = new OutputVisitor(output);
+      node = visitor.beginParse(result);
+
+      visitor.flushLog();
+    } catch (e) {
+      console.log(e);
+      console.error(`error occur in ${it}`)
+    }
 
     const printer = ts.createPrinter({ removeComments: false, newLine: ts.NewLineKind.LineFeed });
 
     const resultFile = ts.createSourceFile('someFileName.ts', '', ts.ScriptTarget.Latest, /*setParentNodes*/ false, ts.ScriptKind.TS);
 
-    const emitted = printer.printNode(ts.EmitHint.Unspecified, node, resultFile);
+    let emitted;
+    if (Array.isArray(node) && node.length > 1) {
+      emitted = node.filter(it => it && it.kind === ts.SyntaxKind.SourceFile).map(it => {
+        return printer.printNode(ts.EmitHint.Unspecified, it, resultFile);
+      }).join('\n\n')
+    } else {
+      emitted = printer.printNode(ts.EmitHint.Unspecified, node, resultFile);
+    }
 
     const fileName = resolve(__dirname, join(ROOT, 'dist/output-ts', it.replace(/.php$/g, '.ts')));
-    fs.mkdirSync(dirname(fileName), {recursive: true})
+    fs.mkdirSync(dirname(fileName), { recursive: true })
 
     fs.writeFileSync(fileName, emitted);
 

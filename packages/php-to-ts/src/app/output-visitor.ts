@@ -107,17 +107,17 @@ export class OutputVisitor {
       ts.createStringLiteral(module)
     );
 
-    ctx.push(rst);
+    ctx && ctx.push(rst);
 
     return rst;
   }
 
   _visitClassOrInterface(ast, type, ctx) {
     const { clazzList } = ctx;
-    const clazzName = ast.name.name;
+    const clazzName = this.visit(ast.name, ctx);
     const _extends = ast.extends;
 
-    this.currentClazzName = clazzName;
+    this.currentClazzName = ast.name && ast.name.name;
     const _implements = ast.implements && ast.implements.map(it => {
       return ts.createExpressionWithTypeArguments(
         undefined,
@@ -150,8 +150,9 @@ export class OutputVisitor {
     if (type === 'class') {
       nAst = ts.createClassDeclaration(
         undefined,
-        undefined,
-        ts.createIdentifier(clazzName),
+        [
+          ts.createModifier(ts.SyntaxKind.ExportKeyword)],
+        clazzName,
         undefined,
         [
           _extends ? ts.createHeritageClause(
@@ -175,8 +176,8 @@ export class OutputVisitor {
     } else if (type === 'interface') {
       nAst = ts.createInterfaceDeclaration(
         undefined,
-        undefined,
-        ts.createIdentifier(clazzName),
+        [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
+        clazzName,
         undefined,
         _implements ? [
           ts.createHeritageClause(
@@ -194,8 +195,9 @@ export class OutputVisitor {
       ts.setSyntheticLeadingComments(nAst, comments);
     }
 
-
-    ctx.clazzList.push(nAst);
+    if (ctx.clazzList) {
+      ctx.clazzList.push(nAst);
+    }
 
     this.currentClazzName = undefined;
     this.currentClassType = undefined;
@@ -306,7 +308,7 @@ export class OutputVisitor {
   }
 
   visitParameter(ast, ctx) {
-    const typeInfo = this.currentComment.tags
+    const typeInfo = this.currentComment && this.currentComment.tags
       .filter(it => it.tag === 'param')
       .find(it => it.description === `$${ast.name!.name}`);
 
@@ -788,7 +790,8 @@ export class OutputVisitor {
   _handleName(name) {
     const NameMap = {
       "class": 'clazz',
-      "default": '_default'
+      "default": '_default',
+      "with": '_with',
     }
 
     return NameMap[name] || name;
@@ -811,7 +814,7 @@ export class OutputVisitor {
       let idx = 0;
       for (let it of ast.items) {
         const value = this.visit(it.value, ctx);
-        if (it.key.kind === 'string' || it.key.kind === 'number') {
+        if (it.key && (it.key.kind === 'string' || it.key.kind === 'number')) {
           const key = this.visit(it.key, ctx);
           objectEntries.push(
             ts.createPropertyAssignment(
@@ -841,6 +844,9 @@ export class OutputVisitor {
   }
 
   visitStaticlookup(ast, ctx) {
+    if (ast.offset && ast.offset.kind === 'identifier' && ast.offset.name === 'class') {
+      return this.visit(ast.what, ctx)
+    }
     return ts.createPropertyAccess(
       this.visit(ast.what, ctx),
       this.visit(ast.offset, ctx)
@@ -892,11 +898,11 @@ export class OutputVisitor {
       const last = types[types.length - 1];
       this.needImports.add(types.join('.'));
 
-      if (last === 'bool') {
+      if (last === 'bool' && types.length === 1) {
         return ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword);
       } else if (last === 'array') {
         return ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
-      } else if (last === 'int') {
+      } else if (last === 'int' || last === 'float') {
         return ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
       } else if (last === 'mixed') {
         return ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
@@ -1087,9 +1093,9 @@ export class OutputVisitor {
   //   return this.visit(ast.x, ctx);
   // }
 
-  // visitDeclare(ast, ctx) {
-  //   // return this.visit(ast.x, ctx);
-  // }
+  visitDeclare(ast, ctx) {
+    return ts.createIdentifier('');
+  }
 
   // visitDeclaredirective(ast, ctx) {
   //   return this.visit(ast.x, ctx);
@@ -1243,10 +1249,10 @@ export class OutputVisitor {
     return ts.createIdentifier(ast.value);
   }
 
-  //
-  // visitNowdoc(ast, ctx) {
-  //   return this.visit(ast.x, ctx);
-  // }
+
+  visitNowdoc(ast, ctx) {
+    return ts.createStringLiteral(ast.raw.replace(/<<<'([^\n]+?)'\n(.+?)\n\1/gs, '$2'));
+  }
 
   visitOperation(ast, ctx) {
     return this.visit(ast.x, ctx);
@@ -1267,12 +1273,10 @@ export class OutputVisitor {
     } else if (ast.type === '-') {
       token = ts.SyntaxKind.MinusMinusToken;
     }
-    return ts.createExpressionStatement(
-      ts.createPostfix(
+    return ts.createPostfix(
         this.visit(ast.what, ctx),
         token
       )
-    );
   }
 
   visitPre(ast, ctx) {
@@ -1282,12 +1286,10 @@ export class OutputVisitor {
     } else if (ast.type === '-') {
       token = ts.SyntaxKind.MinusMinusToken;
     }
-    return ts.createExpressionStatement(
-      ts.createPrefix(
+    return ts.createPrefix(
+        token,
         this.visit(ast.what, ctx),
-        token
       )
-    );
   }
 
   //
@@ -1303,9 +1305,9 @@ export class OutputVisitor {
     return ts.createIdentifier(this.currentClazzName);
   }
 
-  // visitSilent(ast, ctx) {
-  //   return this.visit(ast.x, ctx);
-  // }
+  visitSilent(ast, ctx) {
+    return this.visit(ast.expr, ctx);
+  }
 
   // visitStatement(ast, ctx) {
   // }
