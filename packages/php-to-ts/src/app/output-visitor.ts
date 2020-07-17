@@ -124,18 +124,19 @@ export class OutputVisitor {
         ts.createIdentifier(it.name)
       );
     });
-    const comments = ast.leadingComments && ast.leadingComments.reduce((prev, curr) => {
-      const contents = commentParse(curr.value);
+    const comments = ast.leadingComments &&
+      ast.leadingComments.reduce((prev, curr) => {
+        const contents = commentParse(curr.value);
 
-      contents.forEach(it => {
-        if (curr.kind === 'commentblock') {
-          prev.push(createSynthesizedComment(it.description, true, true));
-        } else if (curr.kind === 'commentline') {
-          prev.push(createSynthesizedComment(it.description, false));
-        }
-      });
-      return prev;
-    }, []);
+        contents.forEach(it => {
+          if (curr.kind === 'commentblock') {
+            prev.push(createSynthesizedComment(it.description, true, true));
+          } else if (curr.kind === 'commentline') {
+            prev.push(createSynthesizedComment(it.description, false));
+          }
+        });
+        return prev;
+      }, []);
 
     //class body
     const clazzCtx = {
@@ -146,8 +147,12 @@ export class OutputVisitor {
     this._forEachAsts(ast.body, clazzCtx);
 
     // tx.createJSDocNode
-    let nAst: ts.ClassDeclaration | ts.InterfaceDeclaration;
+    let nAst: ts.ClassDeclaration | ts.InterfaceDeclaration | ts.EnumDeclaration;
+    let currentClazzIsFinal = false;
     if (type === 'class') {
+      if (ast.isFinal) {
+        currentClazzIsFinal = true;
+      }
       nAst = ts.createClassDeclaration(
         undefined,
         [
@@ -173,6 +178,35 @@ export class OutputVisitor {
           ...clazzCtx.methods
         ]
       );
+
+      //specify handle class if class is final and class constructor have no body statement, also class only have static const define
+      //then the class should be a enum define
+      if (currentClazzIsFinal && clazzCtx.methods.length === 1 &&
+        clazzCtx.methods[0].body.statements &&
+        clazzCtx.methods[0].body.statements.length === 0) {
+        nAst = ts.createEnumDeclaration(
+          undefined,
+          [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
+          clazzName,
+          clazzCtx.properties.map(it => {
+            return ts.setSyntheticLeadingComments(ts.createEnumMember(
+              it.name,
+              it.initializer
+            ), ts.getSyntheticLeadingComments(it));
+          })
+          // ts.createEnumMember(
+          //   ts.createIdentifier("SFSF"),
+          //   ts.createStringLiteral("234")
+          // ),
+          // ts.createEnumMember(
+          //   ts.createIdentifier("SFFD"),
+          //   ts.createStringLiteral("333")
+          // )
+          //
+        );
+
+      }
+
     } else if (type === 'interface') {
       nAst = ts.createInterfaceDeclaration(
         undefined,
@@ -228,7 +262,6 @@ export class OutputVisitor {
 
     let modifiers = this._handleModifier(ast);
 
-
     properties.forEach((it: ts.PropertyDeclaration) => {
       it.modifiers = ts.createNodeArray([...it.modifiers, ...modifiers]);
     });
@@ -245,7 +278,6 @@ export class OutputVisitor {
       }
       ts.setSyntheticLeadingComments(properties[0], propertyComments);
     }
-
 
     ctx.properties = [...ctx.properties, ...properties];
 
@@ -789,10 +821,10 @@ export class OutputVisitor {
 
   _handleName(name) {
     const NameMap = {
-      "class": 'clazz',
-      "default": '_default',
-      "with": '_with',
-    }
+      'class': 'clazz',
+      'default': '_default',
+      'with': '_with'
+    };
 
     return NameMap[name] || name;
   }
@@ -845,7 +877,7 @@ export class OutputVisitor {
 
   visitStaticlookup(ast, ctx) {
     if (ast.offset && ast.offset.kind === 'identifier' && ast.offset.name === 'class') {
-      return this.visit(ast.what, ctx)
+      return this.visit(ast.what, ctx);
     }
     return ts.createPropertyAccess(
       this.visit(ast.what, ctx),
@@ -866,8 +898,7 @@ export class OutputVisitor {
   }
 
   _handleModifier(ast) {
-    let modifiers = [];
-
+    const modifiers = [];
 
     if (this.currentClassType !== 'interface') {
       if (ast.visibility === 'public') {
@@ -1034,6 +1065,13 @@ export class OutputVisitor {
         undefined,
         it.value ? this.visit(it.value, ctx) : undefined
       );
+
+      const propertyComments = this._visitComments(ast);
+
+      if (propertyComments && propertyComments.length > 0) {
+        ts.setSyntheticLeadingComments(node, propertyComments);
+      }
+
       properties.push(node);
     });
 
@@ -1274,9 +1312,9 @@ export class OutputVisitor {
       token = ts.SyntaxKind.MinusMinusToken;
     }
     return ts.createPostfix(
-        this.visit(ast.what, ctx),
-        token
-      )
+      this.visit(ast.what, ctx),
+      token
+    );
   }
 
   visitPre(ast, ctx) {
@@ -1287,9 +1325,9 @@ export class OutputVisitor {
       token = ts.SyntaxKind.MinusMinusToken;
     }
     return ts.createPrefix(
-        token,
-        this.visit(ast.what, ctx),
-      )
+      token,
+      this.visit(ast.what, ctx)
+    );
   }
 
   //

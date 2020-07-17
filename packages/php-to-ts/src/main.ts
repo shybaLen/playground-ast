@@ -20,7 +20,7 @@ const ROOT = '../../../';
 
 glob('source-code/**/*.php', {
   root: ROOT
-}, function (er, files) {
+}, function(er, files) {
   console.log(files);
 
   fs.rmdirSync(join(ROOT, 'dist', 'output-ts'), { recursive: true });
@@ -29,8 +29,8 @@ glob('source-code/**/*.php', {
   files.forEach(it => {
     const code = fs.readFileSync(resolve(__dirname, join(ROOT, it)), 'utf8');
 
-    if (! (code.includes('class') || code.includes('interface'))) {
-      return
+    if (!(code.includes('class') || code.includes('interface'))) {
+      return;
     }
     let node;
     try {
@@ -44,7 +44,7 @@ glob('source-code/**/*.php', {
       visitor.flushLog();
     } catch (e) {
       console.log(e);
-      console.error(`error occur in ${it}`)
+      console.error(`error occur in ${it}`);
     }
 
     const printer = ts.createPrinter({ removeComments: false, newLine: ts.NewLineKind.LineFeed });
@@ -55,18 +55,17 @@ glob('source-code/**/*.php', {
     if (Array.isArray(node) && node.length > 1) {
       emitted = node.filter(it => it && it.kind === ts.SyntaxKind.SourceFile).map(it => {
         return printer.printNode(ts.EmitHint.Unspecified, it, resultFile);
-      }).join('\n\n')
+      }).join('\n\n');
     } else {
       emitted = printer.printNode(ts.EmitHint.Unspecified, node, resultFile);
     }
 
     const fileName = resolve(__dirname, join(ROOT, 'dist/output-ts', it.replace(/.php$/g, '.ts')));
-    fs.mkdirSync(dirname(fileName), { recursive: true })
+    fs.mkdirSync(dirname(fileName), { recursive: true });
 
     fs.writeFileSync(fileName, emitted);
 
   });
-
 
 });
 //
