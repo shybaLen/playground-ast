@@ -32,6 +32,9 @@
     },
     "php-to-ts": {
       "tags": []
+    },
+    "refactor-ts": {
+      "tags": []
     }
   },
   "workspaceLayout": {

@@ -122,6 +122,67 @@
           }
         }
       }
+    },
+    "refactor-ts": {
+      "root": "packages/refactor-ts",
+      "sourceRoot": "packages/refactor-ts/src",
+      "projectType": "application",
+      "prefix": "refactor-ts",
+      "schematics": {},
+      "architect": {
+        "build": {
+          "builder": "@nrwl/node:build",
+          "options": {
+            "outputPath": "dist/packages/refactor-ts",
+            "main": "packages/refactor-ts/src/main.ts",
+            "tsConfig": "packages/refactor-ts/tsconfig.app.json",
+            "assets": [
+              "packages/refactor-ts/src/assets"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "extractLicenses": true,
+              "inspect": false,
+              "fileReplacements": [
+                {
+                  "replace": "packages/refactor-ts/src/environments/environment.ts",
+                  "with": "packages/refactor-ts/src/environments/environment.prod.ts"
+                }
+              ]
+            }
+          }
+        },
+        "serve": {
+          "builder": "@nrwl/node:execute",
+          "options": {
+            "buildTarget": "refactor-ts:build"
+          }
+        },
+        "lint": {
+          "builder": "@nrwl/linter:lint",
+          "options": {
+            "linter": "eslint",
+            "tsConfig": [
+              "packages/refactor-ts/tsconfig.app.json",
+              "packages/refactor-ts/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**",
+              "!packages/refactor-ts/**/*"
+            ]
+          }
+        },
+        "test": {
+          "builder": "@nrwl/jest:jest",
+          "options": {
+            "jestConfig": "packages/refactor-ts/jest.config.js",
+            "tsConfig": "packages/refactor-ts/tsconfig.spec.json",
+            "passWithNoTests": true
+          }
+        }
+      }
     }
   },
   "cli": {
