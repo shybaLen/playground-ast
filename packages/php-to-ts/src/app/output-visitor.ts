@@ -689,15 +689,17 @@ export class OutputVisitor {
   visitSwitch(ast, ctx) {
     return ts.createSwitch(
       this.visit(ast.test, ctx),
-      this._visitCase(ast.body, ctx)
+      this.visit(ast.body, ctx)
     );
   }
 
   visitCase(ast, ctx) {
-    return ts.createCaseClause(
-      this.visit(ast.test, ctx),
-      this._visitArrayList(ast.body.children, ctx)
-    );
+    return !ast.test ?
+      ts.createDefaultClause(this._visitArrayList(ast.body.children, ctx)) :
+      ts.createCaseClause(
+        this.visit(ast.test, ctx),
+        this._visitArrayList(ast.body.children, ctx)
+      );
   }
 
   visitBreak(ast, ctx) {
@@ -760,7 +762,7 @@ export class OutputVisitor {
     const node = this.visit(ast.expr, ctx);
     ts.addSyntheticLeadingComment(
       node,
-      ts.SyntaxKind.SingleLineCommentTrivia,
+      ts.SyntaxKind.MultiLineCommentTrivia,
       `cast type ${ast.type}`,
       false
     );
@@ -815,7 +817,7 @@ export class OutputVisitor {
 
   visitName(ast, ctx) {
     return ts.createIdentifier(
-      this._handleName(ast.name)
+      this._handleName(ast.name.replace('\\', '.'))
     );
   }
 
@@ -823,7 +825,10 @@ export class OutputVisitor {
     const NameMap = {
       'class': 'clazz',
       'default': '_default',
-      'with': '_with'
+      'with': '_with',
+      'function': 'func',
+      'var': 'val',
+      'constructor': 'ctor'
     };
 
     return NameMap[name] || name;
@@ -937,6 +942,10 @@ export class OutputVisitor {
         return ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword);
       } else if (last === 'mixed') {
         return ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+      } else if (last === 'int[]') {
+        return ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword));
+      } else if (last === 'mixed[]') {
+        return ts.createArrayTypeNode(ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword));
       } else if (last === 'Closure') {
         return ts.createTypeReferenceNode(
           ts.createIdentifier('Function'),
@@ -1033,6 +1042,22 @@ export class OutputVisitor {
       return this._visitArrayList(ast.children, ctx);
 
     }
+  }
+
+  visitInline(ast, ctx) {
+    // throw new Error(`ast is not support`);
+    return ts.createNoSubstitutionTemplateLiteral(
+      unescape(ast.raw),
+      unescape(ast.raw)
+    );
+  }
+
+  visitExit(ast, ctx) {
+    return ts.createCall(
+      ts.createIdentifier('exit'),
+      undefined,
+      []
+    );
   }
 
   flushLog() {

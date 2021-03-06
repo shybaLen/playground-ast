@@ -52,12 +52,17 @@ glob('source-code/**/*.php', {
     const resultFile = ts.createSourceFile('someFileName.ts', '', ts.ScriptTarget.Latest, /*setParentNodes*/ false, ts.ScriptKind.TS);
 
     let emitted;
-    if (Array.isArray(node) && node.length > 1) {
-      emitted = node.filter(it => it && it.kind === ts.SyntaxKind.SourceFile).map(it => {
-        return printer.printNode(ts.EmitHint.Unspecified, it, resultFile);
-      }).join('\n\n');
-    } else {
-      emitted = printer.printNode(ts.EmitHint.Unspecified, node, resultFile);
+    try {
+      if (Array.isArray(node) && node.length > 1) {
+        emitted = node.filter(it => it && it.kind === ts.SyntaxKind.SourceFile).map(it => {
+          return printer.printNode(ts.EmitHint.Unspecified, it, resultFile);
+        }).join('\n\n');
+      } else {
+        emitted = printer.printNode(ts.EmitHint.Unspecified, node, resultFile);
+      }
+    }catch (e) {
+      console.log(`file: ${it}`)
+      console.error(e)
     }
 
     const fileName = resolve(__dirname, join(ROOT, 'dist/output-ts', it.replace(/.php$/g, '.ts')));

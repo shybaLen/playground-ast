@@ -5,6 +5,9 @@ import through2 from 'through2';
 import ts from 'typescript';
 import { refactorArrayMerge } from './methods/refactor.array_merge';
 import { refactorIsAny } from './methods/refactor.is_any';
+import { refactor_strtolower_strtoupper } from './methods/refactor.strtolower_strtoupper';
+import { refactor_explode_implode } from './methods/refactor.explode_implode';
+import { refactor_sprintf } from './methods/refactor.sprintf';
 
 
 task('refactor-ts:dist', async () => {
@@ -29,7 +32,10 @@ task('refactor-ts:dist', async () => {
 
           let transformationResult = ts.transform(sourceFile, [
             refactorArrayMerge(),
-            refactorIsAny()
+            refactorIsAny(),
+            refactor_strtolower_strtoupper(),
+            refactor_explode_implode(),
+            refactor_sprintf()
           ]);
 
           const transformedSourceFile = transformationResult.transformed[0];
