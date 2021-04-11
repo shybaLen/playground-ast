@@ -27,7 +27,8 @@ export function refactor_explode_implode<T extends ts.Node>(/*typeChecker: TypeC
       if (
         ts.isCallExpression(node) &&
         ts.isIdentifier(node.expression) &&
-        node.expression.text === 'implode'
+        node.expression.text === 'implode' &&
+        node.arguments.length === 2
       ) {
         return ts.createCall(
           ts.createPropertyAccess(
