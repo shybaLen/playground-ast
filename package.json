@@ -32,7 +32,7 @@
     "comment-parser": "^0.7.5",
     "debug": "^4.1.1",
     "glob": "^7.1.6",
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "php-parser": "^3.0.1",
     "ts-mixer": "^5.3.0"
   },
